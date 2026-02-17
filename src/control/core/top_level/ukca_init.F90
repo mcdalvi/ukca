@@ -330,6 +330,8 @@ ELSE
 
 END IF    ! ukca_config%_ukca_mode
 
+call umPrint('Finished UKCA INIT',src=RoutineName)
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_init
