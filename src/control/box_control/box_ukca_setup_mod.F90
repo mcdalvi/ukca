@@ -75,6 +75,7 @@ USE ukca_option_mod, ONLY:                                                     &
   nrsteps,                                                                     &
   chem_timestep,                                                               &
   dts0,                                                                        &
+  i_chem_timestep_halvings,                                                    &
   l_ukca_asad_columns,                                                         &
   l_ukca_asad_full,                                                            &
   l_ukca_debug_asad,                                                           &
@@ -94,6 +95,7 @@ USE ukca_option_mod, ONLY:                                                     &
   l_ukca_het_psc,                                                              &
   i_ukca_hetconfig,                                                            &
   l_ukca_limit_nat,                                                            &
+  l_fix_ukca_n2o5_h2o,                                                         &
   l_ukca_sa_clim,                                                              &
   l_ukca_trophet,                                                              &
   l_ukca_classic_hetchem,                                                      &
@@ -580,6 +582,7 @@ CALL ukca_setup(errcode,                                                       &
   nrsteps = nrsteps,                                                           &
   chem_timestep = chem_timestep,                                               &
   dts0 = dts0,                                                                 &
+  i_chem_timestep_halvings=i_chem_timestep_halvings,                           &
   l_ukca_asad_columns = l_ukca_asad_columns,                                   &
   l_ukca_asad_full = l_ukca_asad_full,                                         &
   l_ukca_debug_asad = l_ukca_debug_asad,                                       &
@@ -601,6 +604,7 @@ CALL ukca_setup(errcode,                                                       &
   l_ukca_het_psc = l_ukca_het_psc,                                             &
   i_ukca_hetconfig = i_ukca_hetconfig,                                         &
   l_ukca_limit_nat = l_ukca_limit_nat,                                         &
+  l_fix_ukca_n2o5_h2o = l_fix_ukca_n2o5_h2o,                                   &
   l_ukca_sa_clim = l_ukca_sa_clim,                                             &
   l_ukca_trophet = l_ukca_trophet,                                             &
   l_ukca_classic_hetchem = l_ukca_classic_hetchem,                             &
@@ -767,6 +771,7 @@ CALL print_config_settings(                                                    &
   nrsteps = nrsteps,                                                           &
   chem_timestep = chem_timestep,                                               &
   dts0 = dts0,                                                                 &
+  i_chem_timestep_halvings=i_chem_timestep_halvings,                           &
   l_ukca_asad_columns = l_ukca_asad_columns,                                   &
   l_ukca_asad_full = l_ukca_asad_full,                                         &
   l_ukca_debug_asad = l_ukca_debug_asad,                                       &
@@ -788,6 +793,7 @@ CALL print_config_settings(                                                    &
   l_ukca_het_psc = l_ukca_het_psc,                                             &
   i_ukca_hetconfig = i_ukca_hetconfig,                                         &
   l_ukca_limit_nat = l_ukca_limit_nat,                                         &
+  l_fix_ukca_n2o5_h2o = l_fix_ukca_n2o5_h2o,                                   &
   l_ukca_sa_clim = l_ukca_sa_clim,                                             &
   l_ukca_trophet = l_ukca_trophet,                                             &
   l_ukca_classic_hetchem = l_ukca_classic_hetchem,                             &
@@ -1794,6 +1800,7 @@ SUBROUTINE print_config_settings(                                              &
   nrsteps,                                                                     &
   chem_timestep,                                                               &
   dts0,                                                                        &
+  i_chem_timestep_halvings,                                                    &
   l_ukca_asad_columns,                                                         &
   l_ukca_asad_full,                                                            &
   l_ukca_debug_asad,                                                           &
@@ -1815,6 +1822,7 @@ SUBROUTINE print_config_settings(                                              &
   l_ukca_het_psc,                                                              &
   i_ukca_hetconfig,                                                            &
   l_ukca_limit_nat,                                                            &
+  l_fix_ukca_n2o5_h2o,                                                         &
   l_ukca_sa_clim,                                                              &
   l_ukca_trophet,                                                              &
   l_ukca_classic_hetchem,                                                      &
@@ -1985,6 +1993,7 @@ INTEGER, OPTIONAL, INTENT(IN) ::  i_ukca_chem_version
 INTEGER, OPTIONAL, INTENT(IN) ::  nrsteps
 INTEGER, OPTIONAL, INTENT(IN) ::  chem_timestep
 INTEGER, OPTIONAL, INTENT(IN) ::  dts0
+INTEGER, OPTIONAL, INTENT(IN) ::  i_chem_timestep_halvings
 LOGICAL, OPTIONAL, INTENT(IN) ::  l_ukca_asad_columns
 LOGICAL, OPTIONAL, INTENT(IN) ::  l_ukca_asad_full
 LOGICAL, OPTIONAL, INTENT(IN) ::  l_ukca_debug_asad
@@ -2005,6 +2014,7 @@ LOGICAL, OPTIONAL, INTENT(IN) ::  l_ukca_ro2_perm
 LOGICAL, OPTIONAL, INTENT(IN) ::  l_ukca_het_psc
 INTEGER, OPTIONAL, INTENT(IN) ::  i_ukca_hetconfig
 LOGICAL, OPTIONAL, INTENT(IN) ::  l_ukca_limit_nat
+LOGICAL, OPTIONAL, INTENT(IN) ::  l_fix_ukca_n2o5_h2o
 LOGICAL, OPTIONAL, INTENT(IN) ::  l_ukca_sa_clim
 LOGICAL, OPTIONAL, INTENT(IN) ::  l_ukca_trophet
 LOGICAL, OPTIONAL, INTENT(IN) ::  l_ukca_classic_hetchem
@@ -2159,6 +2169,7 @@ INTEGER ::  i_ukca_chem_version_from_ukca
 INTEGER ::  nrsteps_from_ukca
 INTEGER ::  chem_timestep_from_ukca
 INTEGER ::  dts0_from_ukca
+INTEGER ::  chem_timestep_halvings_from_ukca
 LOGICAL ::  l_ukca_asad_columns_from_ukca
 LOGICAL ::  l_ukca_asad_full_from_ukca
 LOGICAL ::  l_ukca_debug_asad_from_ukca
@@ -2179,6 +2190,7 @@ LOGICAL ::  l_ukca_ro2_perm_from_ukca
 LOGICAL ::  l_ukca_het_psc_from_ukca
 INTEGER ::  i_ukca_hetconfig_from_ukca
 LOGICAL ::  l_ukca_limit_nat_from_ukca
+LOGICAL ::  l_fix_ukca_n2o5_h2o_from_ukca
 LOGICAL ::  l_ukca_sa_clim_from_ukca
 LOGICAL ::  l_ukca_trophet_from_ukca
 LOGICAL ::  l_ukca_classic_hetchem_from_ukca
@@ -2337,6 +2349,7 @@ CALL ukca_get_config(                                                          &
   nrsteps=nrsteps_from_ukca,                                                   &
   chem_timestep=chem_timestep_from_ukca,                                       &
   dts0=dts0_from_ukca,                                                         &
+  i_chem_timestep_halvings=chem_timestep_halvings_from_ukca,                   &
   l_ukca_asad_columns=l_ukca_asad_columns_from_ukca,                           &
   l_ukca_asad_full=l_ukca_asad_full_from_ukca,                                 &
   l_ukca_debug_asad=l_ukca_debug_asad_from_ukca,                               &
@@ -2358,6 +2371,7 @@ CALL ukca_get_config(                                                          &
   l_ukca_het_psc=l_ukca_het_psc_from_ukca,                                     &
   i_ukca_hetconfig=i_ukca_hetconfig_from_ukca,                                 &
   l_ukca_limit_nat=l_ukca_limit_nat_from_ukca,                                 &
+  l_fix_ukca_n2o5_h2o=l_fix_ukca_n2o5_h2o_from_ukca,                           &
   l_ukca_sa_clim=l_ukca_sa_clim_from_ukca,                                     &
   l_ukca_trophet=l_ukca_trophet_from_ukca,                                     &
   l_ukca_classic_hetchem=l_ukca_classic_hetchem_from_ukca,                     &
@@ -2574,6 +2588,9 @@ CALL ukca_get_config(                                                          &
     CALL print_setting(chem_timestep, chem_timestep_from_ukca, 'chem_timestep')
   IF (PRESENT(dts0)) &
     CALL print_setting(dts0, dts0_from_ukca, 'dts0')
+  IF (PRESENT(i_chem_timestep_halvings)) &
+    CALL print_setting(i_chem_timestep_halvings,   &
+                  chem_timestep_halvings_from_ukca, 'i_chem_timestep_halvings')
   IF (PRESENT(l_ukca_asad_columns)) &
     CALL print_setting(l_ukca_asad_columns, l_ukca_asad_columns_from_ukca, 'l_ukca_asad_columns')
   IF (PRESENT(l_ukca_asad_full)) &
@@ -2615,6 +2632,9 @@ CALL ukca_get_config(                                                          &
     CALL print_setting(i_ukca_hetconfig, i_ukca_hetconfig_from_ukca, 'i_ukca_hetconfig')
   IF (PRESENT(l_ukca_limit_nat)) &
     CALL print_setting(l_ukca_limit_nat, l_ukca_limit_nat_from_ukca, 'l_ukca_limit_nat')
+  IF (PRESENT(l_fix_ukca_n2o5_h2o)) &
+    CALL print_setting(l_fix_ukca_n2o5_h2o, l_fix_ukca_n2o5_h2o_from_ukca, &
+                      'l_fix_ukca_n2o5_h2o')
   IF (PRESENT(l_ukca_sa_clim)) &
     CALL print_setting(l_ukca_sa_clim, l_ukca_sa_clim_from_ukca, 'l_ukca_sa_clim')
   IF (PRESENT(l_ukca_trophet)) &

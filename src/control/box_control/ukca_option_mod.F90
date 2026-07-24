@@ -28,6 +28,7 @@ USE ukca_config_specification_mod, ONLY:                                       &
   ukca_chem_offline_be => i_ukca_chem_offline_be,                              &
   ukca_chem_tropisop => i_ukca_chem_tropisop,                                  &
   ukca_chem_strattrop => i_ukca_chem_strattrop,                                &
+  ukca_chem_raq => i_ukca_chem_raq,                                            &
   ukca_chem_strat => i_ukca_chem_strat,                                        &
   ukca_chem_cristrat => i_ukca_chem_cristrat,                                  &
   ukca_activation_arg => i_ukca_activation_arg,                                &
@@ -104,6 +105,18 @@ INTEGER :: i_ukca_tune_bc      = imdi
 ! Configuration of heterogeneous chemistry scheme
 INTEGER :: i_ukca_hetconfig = 0  ! 0 = default, 1 = JPL-15 recommended coeff.
                                  ! 2 = JPL-15 + br reactions
+
+! Option codes for 'i_ukca_radaer_prescribe_ssa'
+! Prescribe SSA in RADAER
+!   0: No prescribed single scattering albedo
+!   1: Prescribed on 1 wb
+!   2: Prescribed on radiation wavebands
+! By default set this to 0 to turn off the scheme in RADAER
+INTEGER, PARAMETER :: do_not_prescribe = 0
+INTEGER, PARAMETER :: prescribe_one_wb = 1
+INTEGER, PARAMETER :: prescribe_all_wb = 2
+INTEGER :: i_ukca_radaer_prescribe_ssa = 0
+
 INTEGER :: i_ukca_topboundary = 1
 ! 0: Do nothing
 ! 1: Overwrite top 2 levels with 3rd (except H2O)
@@ -142,12 +155,14 @@ REAL :: ph_fit_intercept = rmdi ! cloud pH fit intercept
 
 INTEGER :: chem_timestep = imdi         ! Chemical timestep in seconds for N-R
                                         ! and Offline oxidant schemes
+INTEGER :: i_chem_timestep_halvings = imdi ! Integer number of times to half the
+                                        ! ASAD chemistry timestep
 INTEGER :: dts0 = 300                   ! Default Backward Euler timestep
 INTEGER :: nit  = 8                     ! Number of iterations of BE Solver
 
 INTEGER :: nrsteps = imdi
 
-INTEGER :: i_ukca_photol = 0             ! Photolysis scheme to use
+INTEGER :: i_ukca_photol = 0            ! Photolysis scheme to use
 
 INTEGER :: nerupt = imdi                ! Number of explosive eruptions
                                         ! to consider
@@ -241,6 +256,7 @@ INTEGER :: i_ukca_nwbins = imdi         ! Controls value of nwbins in Activate
 LOGICAL :: l_ukca_fine_no3_prod = .FALSE.
 LOGICAL :: l_ukca_coarse_no3_prod = .FALSE.
 LOGICAL :: l_no3_prod_in_aero_step = .FALSE.
+REAL    :: hno3_uptake_coeff = rmdi
 
 ! Flag to turn on the Slinn impaction scavenging scheme
 ! for dust and microplastics
@@ -248,6 +264,17 @@ LOGICAL :: l_dust_mp_slinn_impc_scav = .FALSE.
 
 ! Flag to turn on dust ageing (coag, nucl) and activation
 LOGICAL :: l_dust_mp_ageing = .FALSE.
+
+! Microplastic emissions scheme control
+LOGICAL :: l_ukca_mp_fragment = .FALSE.
+LOGICAL :: l_ukca_mp_fibre = .FALSE.
+
+! Flag to turn off rainout for SOL/INSOL
+LOGICAL :: l_aero_rainout = .TRUE.
+
+! Apportion sol/insol no ions to aerosol components
+! Corresponds to components cp_su, cp_cl, cp_bc, cp_oc
+REAL :: solinsol_hygro_ratio(4) = rmdi
 
 ! Not included in namelist at present:
 INTEGER, PARAMETER :: i_mode_nucscav = 3 ! Choice of nucl. scavenging co-effs:
@@ -457,6 +484,18 @@ REAL :: seadms_ems_scaling = rmdi     ! Marine DMS emission scaling factor
 REAL :: sea_salt_ems_scaling = rmdi   ! Sea salt emission scaling factor
 REAL :: marine_pom_ems_scaling = rmdi ! Marine POM emission scaling factor
 
+! UKCA RADAER prescriptions
+! Number of distributions in each spectrum: extinction, absorption
+INTEGER, PARAMETER :: n_ukca_radaer = 2
+
+! Information on netCDF files for UKCA RADAER prescriptions
+INTEGER, PARAMETER :: n_ukca_radaer_files = n_ukca_radaer*2 ! = 4 netCDF files
+CHARACTER (LEN=filenamelength) :: ukca_radaer_dir = 'unset'
+CHARACTER (LEN=filenamelength) :: ukca_radaer_swext_file = 'unset'
+CHARACTER (LEN=filenamelength) :: ukca_radaer_swabs_file = 'unset'
+CHARACTER (LEN=filenamelength) :: ukca_radaer_lwext_file = 'unset'
+CHARACTER (LEN=filenamelength) :: ukca_radaer_lwabs_file = 'unset'
+
 ! options for quasi-Newton (Broyden) Method to reduce number of iterations
 ! in asad_spimpmjp
 LOGICAL :: l_ukca_quasinewton       = .FALSE.
@@ -475,6 +514,23 @@ INTEGER :: i_ageair_reset_method = imdi
 INTEGER :: max_ageair_reset_level = imdi  ! Max level to which to reset
 REAL    :: max_ageair_reset_height = rmdi ! Max height (m) to which to reset
 
+! Scaling parameters for perturbed parameter ensembles
+REAL :: dry_depvel_so2_scaling = rmdi     ! Scaling factor for SO2 dry
+                                          ! deposition velocity
+REAL :: anth_so2_ems_scaling = rmdi       ! Scaling factor for anthropogenic
+                                          ! SO2 emissions
+REAL :: dry_depvel_acc_scaling = rmdi     ! Scaling factor for dry deposition
+                                          ! velocity for the accumulation mode
+REAL :: acc_cor_scav_scaling = rmdi       ! Scaling factor for scavenging
+                                          ! parameters for the accumulation and
+                                          ! coarse modes
+REAL :: sigma_updraught_scaling = rmdi    ! Scaling factor for standard
+                                          ! deviation of updraught velocities
+REAL :: bc_refrac_im_scaling = rmdi       ! Scaling factor for the imaginary
+                                          ! part of the BC refractive index
+LOGICAL :: l_ukca_scale_ppe = .FALSE.     ! Apply scaling to parameters used in
+                                          ! perturbed parameter ensembles
+
 ! Define the RUN_UKCA namelist
 
 NAMELIST/run_ukca/ l_ukca, l_ukca_aie1, l_ukca_aie2,                           &
@@ -490,6 +546,7 @@ NAMELIST/run_ukca/ l_ukca, l_ukca_aie1, l_ukca_aie2,                           &
          l_ukca_radf11, l_ukca_radf12, l_ukca_radf113,                         &
          l_ukca_radf22, l_ukca_radaer, i_ukca_tune_bc,                         &
          l_ukca_radaer_sustrat,                                                &
+         i_ukca_radaer_prescribe_ssa,                                          &
          l_ukca_intdd, l_ukca_trophet, l_ukca_prescribech4,                    &
          l_ukca_set_trace_gases, l_ukca_use_background_aerosol,                &
          i_ukca_hetconfig, i_ukca_topboundary,                                 &
@@ -497,8 +554,10 @@ NAMELIST/run_ukca/ l_ukca, l_ukca_aie1, l_ukca_aie2,                           &
          l_ukca_ro2_perm, l_ukca_intph, ph_fit_coeff_a, ph_fit_coeff_b,        &
          ph_fit_intercept, l_ukca_primsu, l_ukca_primss, i_primss_method,      &
          l_ukca_fine_no3_prod, l_ukca_coarse_no3_prod, l_no3_prod_in_aero_step,&
-         l_dust_mp_slinn_impc_scav, l_ukca_primbcoc, l_ukca_prim_moc,          &
-         l_ukca_primdu, l_dust_mp_ageing,                                      &
+         l_ukca_mp_fragment, l_ukca_mp_fibre,                                  &
+         hno3_uptake_coeff, l_dust_mp_slinn_impc_scav, l_ukca_primbcoc,        &
+         l_ukca_prim_moc, l_ukca_primdu, l_dust_mp_ageing, l_aero_rainout,     &
+         solinsol_hygro_ratio,                                                 &
          l_bcoc_ff, l_bcoc_bf, l_bcoc_bm, l_mode_bhn_on,                       &
          l_mode_bln_on, i_ukca_activation_scheme,                              &
          l_ukca_sfix, i_mode_setup, i_mode_nzts,                               &
@@ -508,7 +567,7 @@ NAMELIST/run_ukca/ l_ukca, l_ukca_aie1, l_ukca_aie2,                           &
          l_ukca_scale_biom_aer_ems, biom_aer_ems_scaling,                      &
          l_ukca_scale_soa_yield_mt, soa_yield_scaling_mt,                      &
          l_ukca_scale_soa_yield_isop, soa_yield_scaling_isop,                  &
-         chem_timestep, dts0, nit, nrsteps,                                    &
+         chem_timestep, i_chem_timestep_halvings, dts0, nit, nrsteps,          &
          jvspec_dir, jvspec_file, jvscat_file, jvsolar_file,                   &
          phot2d_dir, fastjx_numwl, fastjx_mode,                                &
          fastjx_prescutoff, dir_strat_aer, file_strat_aer,                     &
@@ -539,10 +598,15 @@ NAMELIST/run_ukca/ l_ukca, l_ukca_aie1, l_ukca_aie2,                           &
          l_ukca_inferno, l_ukca_inferno_ch4, i_inferno_emi,                    &
          l_ukca_ddepo3_ocean,                                                  &
          i_ukca_nwbins, i_ukca_chem_version,                                   &
-         l_ukca_dry_dep_so2wet,                                                &
+         l_ukca_dry_dep_so2wet, ukca_radaer_dir,                               &
+         ukca_radaer_swext_file, ukca_radaer_swabs_file,                       &
+         ukca_radaer_lwext_file, ukca_radaer_lwabs_file,                       &
          l_environ_jo2, l_environ_jo2b,                                        &
          l_ukca_scale_sea_salt_ems, sea_salt_ems_scaling,                      &
-         l_ukca_scale_marine_pom_ems, marine_pom_ems_scaling
+         l_ukca_scale_marine_pom_ems, marine_pom_ems_scaling,                  &
+         dry_depvel_so2_scaling, anth_so2_ems_scaling,                         &
+         dry_depvel_acc_scaling, acc_cor_scav_scaling,                         &
+         sigma_updraught_scaling, bc_refrac_im_scaling, l_ukca_scale_ppe
 
 ! -----------------------------------------------------------------------------
 ! These are set by UKCA via the 'atmos_ukca_setup' call after the namelist is
@@ -616,6 +680,12 @@ USE model_domain_mod,      ONLY: model_type, mt_lam
 USE science_fixes_mod,     ONLY: l_improve_aero_drydep
 
 IMPLICIT NONE
+
+! Local variables
+REAL, PARAMETER :: min_bc_refrac_im_scaling = 0.1    ! Minimum allowable value
+                                                     ! for bc_refrac_im_scaling
+REAL, PARAMETER :: max_bc_refrac_im_scaling = 1.4    ! Maximum allowable value
+                                                     ! for bc_refrac_im_scaling
 
 CHARACTER (LEN=*), PARAMETER   :: RoutineName = 'CHECK_RUN_UKCA'
 CHARACTER (LEN=errormessagelength)            :: cmessage   ! Error message
@@ -694,6 +764,13 @@ IF ( l_ukca_mode .AND. (( i_mode_setup == 10 ) .OR. ( i_mode_setup == 12 ))    &
      .AND. .NOT. ( i_ukca_chem == ukca_chem_strattrop ) ) THEN
   cmessage='Mode setups 10 and 12 only work with strattrop chemistry'
   errcode=8
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
+IF ( ( l_ukca_mp_fragment .OR. l_ukca_mp_fibre ) .AND. .NOT. l_ukca_mode ) THEN
+  cmessage='Cannot use microplastic emissions scheme without' //               &
+           ' GLOMAP-mode aerosol'
+  errcode=9
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -824,10 +901,17 @@ IF ( i_ukca_chem == ukca_chem_strat      .OR.                                  &
       CALL ereport(routinename,errcode,cmessage)
     END IF
   END IF
+  ! Check i_chem_timestep_halvings is within the expected bounds
+  IF ((i_chem_timestep_halvings < 0) .OR. (i_chem_timestep_halvings > 5)) THEN
+    WRITE(cmessage,'(A)')                                                      &
+          'i_chem_timestep_halvings must be an integer between zero and five'
+    errcode = 17
+    CALL ereport(routinename,errcode,cmessage)
+  END IF
 END IF
 
 IF (l_ukca_ibvoc .AND. (.NOT. l_bvoc_emis)) THEN
-  errcode  = 17
+  errcode  = 18
   cmessage = 'UKCA cannot use iBVOC emissions because they are not' //         &
              ' activated in JULES'
   CALL ereport (routinename, errcode, cmessage)
@@ -837,7 +921,7 @@ IF ( l_ukca_inferno .AND. .NOT. l_inferno ) THEN
   WRITE(cmessage,'(A,A)')                                                      &
        ' l_ukca_inferno is .true but l_inferno is .false.',                    &
        ' l_inferno needs to be .true. to run interactive emissions '
-  errcode = 18
+  errcode = 19
   CALL ereport(routinename,errcode,cmessage)
 END IF
 
@@ -862,7 +946,7 @@ IF ( l_ukca_emsdrvn_ch4 ) THEN
       //'chemical mechanism has been selected.'                                &
       //'Only StratTrop chemistry is supported in CH4 ems-driven mode.')
     cmessage = 'Unsupported chemical mechanism enabled!'
-    errcode  = 19
+    errcode  = 20
     CALL ereport (RoutineName, errcode, cmessage)
   END IF
 
@@ -871,7 +955,7 @@ IF ( l_ukca_emsdrvn_ch4 ) THEN
       //'l_ukca_qch4inter is .false.; l_ukca_qch4inter needs to be .true.'     &
       //'to run in dynamic CH4 mode.')
     cmessage = 'l_ukca_qch4inter must be .true. to run dynamic CH4 mode!'
-    errcode  = 20
+    errcode  = 21
     CALL ereport (RoutineName, errcode, cmessage)
   END IF
 
@@ -880,7 +964,7 @@ IF ( l_ukca_emsdrvn_ch4 ) THEN
       //'l_ukca_prescribech4 is also .true.; l_ukca_prescribech4'              &
       //' needs to be .false. to run in dynamic CH4 mode.')
     cmessage = 'l_ukca_prescribech4 and l_ukca_emsdrvn_ch4 mutually excusive!'
-    errcode  = 21
+    errcode  = 22
     CALL ereport (RoutineName, errcode, cmessage)
   END IF
 END IF
@@ -911,7 +995,7 @@ IF ( (.NOT. l_param_conv) .AND.                                                &
   WRITE(cmessage,'(A)')' Full chemistry run cannot include lightning NOx'      &
       //newline//                                                              &
       'as convection parameterisation is off. This is not allowed.'
-  errcode = 22
+  errcode = 23
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -920,7 +1004,43 @@ IF ( i_ukca_light_param == ukca_lightning_ext .AND.                            &
   WRITE(cmessage,'(A,A)')                                                      &
        'i_ukca_light_param is 3 (external lightning) but an incorrect choice ',&
        'of electric_method (=/3) in run_electric is chosen. Please correct. '
-  errcode = 23
+  errcode = 24
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
+! Ensure that PPE scaling parameters are only used when l_ukca is on
+IF ( l_ukca_scale_ppe .AND. (.NOT. l_ukca) ) THEN
+  WRITE(cmessage, '()')                                                        &
+       'l_ukca_scale_ppe should not be .TRUE. if l_ukca is .FALSE.',           &
+       'Please correct.'
+  errcode = 25
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
+! Check bc_refrac_im_scaling is in allowable range
+IF ( (bc_refrac_im_scaling < min_bc_refrac_im_scaling .OR.                     &
+      bc_refrac_im_scaling > max_bc_refrac_im_scaling) .AND.                   &
+     l_ukca_scale_ppe ) THEN
+  WRITE(cmessage,'(3(A,F8.4))')                                                &
+        'bc_refrac_im_scaling value is', bc_refrac_im_scaling,                 &
+        'It should be between', min_bc_refrac_im_scaling, 'and',               &
+        max_bc_refrac_im_scaling
+  errcode = 26
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
+! Check SOL/INSOL settings
+IF ( ( i_ukca_radaer_prescribe_ssa /= do_not_prescribe ) .AND.                 &
+     ( l_ukca_mode .AND. ( i_mode_setup /= 11 ) .AND. l_ukca_radaer ) ) THEN
+  cmessage='Prescribed SSA option other than zero only permitted for MS11'
+  errcode=27
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
+IF ( ( i_ukca_radaer_prescribe_ssa < do_not_prescribe ) .OR.                   &
+     ( i_ukca_radaer_prescribe_ssa > prescribe_all_wb ) ) THEN
+  cmessage='Prescribed SSA option other than 0, 1, 2 is not permitted'
+  errcode=28
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -989,6 +1109,8 @@ WRITE(lineBuffer,'(A30,I6)')' i_ukca_tune_bc = ',i_ukca_tune_bc
 CALL umPrint(lineBuffer,src='ukca_option_mod')
 WRITE(lineBuffer,'(A33,L1)')' l_ukca_radaer_sustrat = ',l_ukca_radaer_sustrat
 CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A33,I6)')' i_ukca_radaer_prescribe_ssa = ',                 &
+      i_ukca_radaer_prescribe_ssa
 WRITE(lineBuffer,'(A33,L1)')' l_ukca_intdd = ',l_ukca_intdd
 CALL umPrint(lineBuffer,src='ukca_option_mod')
 WRITE(lineBuffer,'(A33,L1)')' l_ukca_ddepo3_ocean = ',l_ukca_ddepo3_ocean
@@ -1064,6 +1186,17 @@ WRITE(lineBuffer,'(A33,L1)')' l_dust_mp_slinn_impc_scav = ',                   &
 CALL umPrint(lineBuffer,src='ukca_option_mod')
 WRITE(lineBuffer,'(A33,L1)')' l_dust_mp_ageing = ',l_dust_mp_ageing
 CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A33,L1)')' l_aero_rainout = ',l_aero_rainout
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A33,4E15.6)')' solinsol_hygro_ratio = ',                    &
+                                  solinsol_hygro_ratio
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A33,E15.6)')' hno3_uptake_coeff = ',hno3_uptake_coeff
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A33,L1)')' l_ukca_mp_fragment = ',l_ukca_mp_fragment
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A33,L1)')' l_ukca_mp_fibre = ',l_ukca_mp_fibre
+CALL umPrint(lineBuffer,src='ukca_option_mod')
 WRITE(lineBuffer,'(A33,L1)')' l_mode_bhn_on = ',l_mode_bhn_on
 CALL umPrint(lineBuffer,src='ukca_option_mod')
 WRITE(lineBuffer,'(A33,L1)')' l_mode_bln_on = ',l_mode_bln_on
@@ -1106,6 +1239,9 @@ WRITE(lineBuffer,'(A30,E15.6)')' mode_activation_dryr = ',                     &
      mode_activation_dryr
 CALL umPrint(lineBuffer,src='ukca_option_mod')
 WRITE(lineBuffer,'(A,I6)')' chem_timestep = ',chem_timestep
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A,I6)')' i_chem_timestep_halvings = ',                      &
+     i_chem_timestep_halvings
 CALL umPrint(lineBuffer,src='ukca_option_mod')
 WRITE(lineBuffer,'(A,I6)')' dts0 = ',dts0
 CALL umPrint(lineBuffer,src='ukca_option_mod')
@@ -1202,6 +1338,16 @@ DO i=2, max_offline_files
     CALL umPrint(lineBuffer,src='ukca_option_mod')
   END IF
 END DO
+WRITE(lineBuffer,'(A30,A)')' ukca_radaer_dir = ',ukca_radaer_dir
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A30,A)')' ukca_radaer_lwabs_file = ',ukca_radaer_lwabs_file
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A30,A)')' ukca_radaer_lwext_file = ',ukca_radaer_lwext_file
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A30,A)')' ukca_radaer_swabs_file = ',ukca_radaer_swabs_file
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A30,A)')' ukca_radaer_swext_file = ',ukca_radaer_swext_file
+CALL umPrint(lineBuffer,src='ukca_option_mod')
 WRITE(lineBuffer,'(A)') 'tc_lbc_ukca'
 CALL umPrint(lineBuffer,src='ukca_option_mod')
 DO i=1,a_max_ukcavars
@@ -1301,6 +1447,24 @@ WRITE(lineBuffer,'(A,L1)')' l_environ_jo2 = ', l_environ_jo2
 CALL umPrint(lineBuffer,src='ukca_option_mod')
 WRITE(lineBuffer,'(A,L1)')' l_environ_jo2b = ', l_environ_jo2b
 CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A,L1)')' l_ukca_scale_ppe = ', l_ukca_scale_ppe
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A,F16.4)')' dry_depvel_so2_scaling = ',                     &
+                               dry_depvel_so2_scaling
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A,F16.4)')' anth_so2_ems_scaling = ',                       &
+                               anth_so2_ems_scaling
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A,F16.4)')' dry_depvel_acc_scaling = ',                     &
+                               dry_depvel_acc_scaling
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A,F16.4)')' acc_cor_scav_scaling = ', acc_cor_scav_scaling
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A,F16.4)')' sigma_updraught_scaling = ',                    &
+                               sigma_updraught_scaling
+CALL umPrint(lineBuffer,src='ukca_option_mod')
+WRITE(lineBuffer,'(A,F16.4)')' bc_refrac_im_scaling = ', bc_refrac_im_scaling
+CALL umPrint(lineBuffer,src='ukca_option_mod')
 
 CALL umPrint('- - - - - - end of namelist - - - - - -',                        &
     src='ukca_option_mod')
@@ -1333,16 +1497,17 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='READ_NML_RUN_UKCA'
 ! No of variable types in namelist
 INTEGER, PARAMETER :: no_of_types = 4
 ! No of integer variables in namelist
-INTEGER, PARAMETER :: n_int = 33 + a_max_ukcavars
+INTEGER, PARAMETER :: n_int = 35 + a_max_ukcavars
 ! No of real variables in namelist
-INTEGER, PARAMETER :: n_real = 30
+INTEGER, PARAMETER :: n_real = 42
 ! No of logical variables in namelist
-INTEGER, PARAMETER :: n_log = 69
+INTEGER, PARAMETER :: n_log = 74
 ! No of string variables in namelist
 INTEGER, PARAMETER :: n_chars = 10 * filenamelength                            &
                         + filenamelength * (1+ nr_cdf_files)                   &
                         + filenamelength * (1+ max_offline_files)              &
-                        + filenamelength * 7  ! RADAER namelists
+                        + filenamelength * 11 & ! RADAER namelists
+                        + filenamelength * 5    ! Presc SSA namelists
 
 TYPE :: my_namelist
   SEQUENCE
@@ -1353,6 +1518,7 @@ TYPE :: my_namelist
   INTEGER :: i_mode_nzts
   INTEGER :: i_mode_bln_param_method
   INTEGER :: chem_timestep
+  INTEGER :: i_chem_timestep_halvings
   INTEGER :: dts0
   INTEGER :: nit
   INTEGER :: nrsteps
@@ -1380,6 +1546,7 @@ TYPE :: my_namelist
   INTEGER :: i_ukca_light_param
   INTEGER :: i_ukca_tune_bc
   INTEGER :: i_primss_method
+  INTEGER :: i_ukca_radaer_prescribe_ssa
   REAL :: mode_parfrac
   REAL :: mode_aitsol_cvscav
   REAL :: mode_activation_dryr
@@ -1407,10 +1574,18 @@ TYPE :: my_namelist
   REAL :: seadms_ems_scaling
   REAL :: sea_salt_ems_scaling
   REAL :: marine_pom_ems_scaling
+  REAL :: hno3_uptake_coeff
   REAL :: max_ageair_reset_height
   REAL :: ph_fit_coeff_a
   REAL :: ph_fit_coeff_b
   REAL :: ph_fit_intercept
+  REAL :: dry_depvel_so2_scaling
+  REAL :: anth_so2_ems_scaling
+  REAL :: dry_depvel_acc_scaling
+  REAL :: acc_cor_scav_scaling
+  REAL :: sigma_updraught_scaling
+  REAL :: bc_refrac_im_scaling
+  REAL :: solinsol_hygro_ratio(4)
   LOGICAL :: l_ukca
   LOGICAL :: l_ukca_aie1
   LOGICAL :: l_ukca_aie2
@@ -1453,6 +1628,9 @@ TYPE :: my_namelist
   LOGICAL :: l_no3_prod_in_aero_step
   LOGICAL :: l_dust_mp_slinn_impc_scav
   LOGICAL :: l_dust_mp_ageing
+  LOGICAL :: l_ukca_mp_fragment
+  LOGICAL :: l_ukca_mp_fibre
+  LOGICAL :: l_aero_rainout
   LOGICAL :: l_mode_bhn_on
   LOGICAL :: l_mode_bln_on
   LOGICAL :: l_ukca_sfix
@@ -1481,6 +1659,7 @@ TYPE :: my_namelist
   LOGICAL :: l_ukca_dry_dep_so2wet
   LOGICAL :: l_environ_jo2
   LOGICAL :: l_environ_jo2b
+  LOGICAL :: l_ukca_scale_ppe
   CHARACTER (LEN=filenamelength) :: jvspec_dir
   CHARACTER (LEN=filenamelength) :: jvspec_file
   CHARACTER (LEN=filenamelength) :: jvscat_file
@@ -1506,6 +1685,11 @@ TYPE :: my_namelist
   CHARACTER (LEN=filenamelength) :: ukcasulw
   CHARACTER (LEN=filenamelength) :: ukcasusw
   CHARACTER (LEN=filenamelength) :: ukcaprec
+  CHARACTER (LEN=filenamelength) :: ukca_radaer_dir
+  CHARACTER (LEN=filenamelength) :: ukca_radaer_swext_file
+  CHARACTER (LEN=filenamelength) :: ukca_radaer_swabs_file
+  CHARACTER (LEN=filenamelength) :: ukca_radaer_lwext_file
+  CHARACTER (LEN=filenamelength) :: ukca_radaer_lwabs_file
 END TYPE my_namelist
 
 TYPE (my_namelist) :: my_nml
@@ -1529,6 +1713,7 @@ IF (mype == 0) THEN
   my_nml % i_mode_nzts     = i_mode_nzts
   my_nml % i_mode_bln_param_method = i_mode_bln_param_method
   my_nml % chem_timestep   = chem_timestep
+  my_nml % i_chem_timestep_halvings = i_chem_timestep_halvings
   my_nml % dts0            = dts0
   my_nml % nit             = nit
   my_nml % nrsteps         = nrsteps
@@ -1556,6 +1741,7 @@ IF (mype == 0) THEN
   my_nml % i_ukca_light_param = i_ukca_light_param
   my_nml % i_ukca_tune_bc      = i_ukca_tune_bc
   my_nml % i_primss_method = i_primss_method
+  my_nml % i_ukca_radaer_prescribe_ssa = i_ukca_radaer_prescribe_ssa
   ! end of integers
   my_nml % mode_parfrac       = mode_parfrac
   my_nml % mode_aitsol_cvscav = mode_aitsol_cvscav
@@ -1588,6 +1774,14 @@ IF (mype == 0) THEN
   my_nml % ph_fit_coeff_a     = ph_fit_coeff_a
   my_nml % ph_fit_coeff_b     = ph_fit_coeff_b
   my_nml % ph_fit_intercept   = ph_fit_intercept
+  my_nml % hno3_uptake_coeff = hno3_uptake_coeff
+  my_nml % dry_depvel_so2_scaling = dry_depvel_so2_scaling
+  my_nml % anth_so2_ems_scaling = anth_so2_ems_scaling
+  my_nml % dry_depvel_acc_scaling = dry_depvel_acc_scaling
+  my_nml % acc_cor_scav_scaling = acc_cor_scav_scaling
+  my_nml % sigma_updraught_scaling = sigma_updraught_scaling
+  my_nml % bc_refrac_im_scaling = bc_refrac_im_scaling
+  my_nml % solinsol_hygro_ratio = solinsol_hygro_ratio
   ! end of reals
   my_nml % l_ukca              = l_ukca
   my_nml % l_ukca_aie1         = l_ukca_aie1
@@ -1630,6 +1824,8 @@ IF (mype == 0) THEN
   my_nml % l_ukca_coarse_no3_prod = l_ukca_coarse_no3_prod
   my_nml % l_no3_prod_in_aero_step = l_no3_prod_in_aero_step
   my_nml % l_dust_mp_slinn_impc_scav = l_dust_mp_slinn_impc_scav
+  my_nml % l_ukca_mp_fragment  = l_ukca_mp_fragment
+  my_nml % l_ukca_mp_fibre     = l_ukca_mp_fibre
   my_nml % l_mode_bhn_on       = l_mode_bhn_on
   my_nml % l_mode_bln_on       = l_mode_bln_on
   my_nml % l_ukca_sfix         = l_ukca_sfix
@@ -1659,6 +1855,8 @@ IF (mype == 0) THEN
   my_nml % l_environ_jo2  = l_environ_jo2
   my_nml % l_environ_jo2b = l_environ_jo2b
   my_nml % l_dust_mp_ageing = l_dust_mp_ageing
+  my_nml % l_aero_rainout = l_aero_rainout
+  my_nml % l_ukca_scale_ppe = l_ukca_scale_ppe
   ! end of logicals
   my_nml % jvspec_dir     = jvspec_dir
   my_nml % jvspec_file    = jvspec_file
@@ -1685,6 +1883,11 @@ IF (mype == 0) THEN
   my_nml % ukcasulw = ukcasulw
   my_nml % ukcasusw = ukcasusw
   my_nml % ukcaprec = ukcaprec
+  my_nml % ukca_radaer_dir = ukca_radaer_dir
+  my_nml % ukca_radaer_swext_file = ukca_radaer_swext_file
+  my_nml % ukca_radaer_swabs_file = ukca_radaer_swabs_file
+  my_nml % ukca_radaer_lwext_file = ukca_radaer_lwext_file
+  my_nml % ukca_radaer_lwabs_file = ukca_radaer_lwabs_file
 END IF
 
 CALL mpl_bcast(my_nml,1,mpl_nml_type,0,my_comm,icode)
@@ -1698,6 +1901,7 @@ IF (mype /= 0) THEN
   i_mode_nzts     = my_nml % i_mode_nzts
   i_mode_bln_param_method = my_nml % i_mode_bln_param_method
   chem_timestep   = my_nml % chem_timestep
+  i_chem_timestep_halvings = my_nml % i_chem_timestep_halvings
   dts0            = my_nml % dts0
   nit             = my_nml % nit
   nrsteps         = my_nml % nrsteps
@@ -1725,6 +1929,7 @@ IF (mype /= 0) THEN
   i_ukca_light_param = my_nml % i_ukca_light_param
   i_ukca_tune_bc      = my_nml % i_ukca_tune_bc
   i_primss_method = my_nml % i_primss_method
+  i_ukca_radaer_prescribe_ssa = my_nml % i_ukca_radaer_prescribe_ssa
   ! end of integers
   mode_parfrac       = my_nml % mode_parfrac
   mode_aitsol_cvscav = my_nml % mode_aitsol_cvscav
@@ -1757,6 +1962,14 @@ IF (mype /= 0) THEN
   ph_fit_coeff_a      = my_nml % ph_fit_coeff_a
   ph_fit_coeff_b      = my_nml % ph_fit_coeff_b
   ph_fit_intercept    = my_nml % ph_fit_intercept
+  hno3_uptake_coeff   = my_nml % hno3_uptake_coeff
+  dry_depvel_so2_scaling = my_nml % dry_depvel_so2_scaling
+  anth_so2_ems_scaling = my_nml % anth_so2_ems_scaling
+  dry_depvel_acc_scaling = my_nml % dry_depvel_acc_scaling
+  acc_cor_scav_scaling = my_nml % acc_cor_scav_scaling
+  sigma_updraught_scaling = my_nml % sigma_updraught_scaling
+  bc_refrac_im_scaling = my_nml % bc_refrac_im_scaling
+  solinsol_hygro_ratio = my_nml % solinsol_hygro_ratio
   ! end of reals
   l_ukca              = my_nml % l_ukca
   l_ukca_aie1         = my_nml % l_ukca_aie1
@@ -1799,6 +2012,8 @@ IF (mype /= 0) THEN
   l_ukca_coarse_no3_prod = my_nml % l_ukca_coarse_no3_prod
   l_no3_prod_in_aero_step = my_nml % l_no3_prod_in_aero_step
   l_dust_mp_slinn_impc_scav = my_nml % l_dust_mp_slinn_impc_scav
+  l_ukca_mp_fragment  = my_nml % l_ukca_mp_fragment
+  l_ukca_mp_fibre     = my_nml % l_ukca_mp_fibre
   l_mode_bhn_on       = my_nml % l_mode_bhn_on
   l_mode_bln_on       = my_nml % l_mode_bln_on
   l_ukca_sfix         = my_nml % l_ukca_sfix
@@ -1828,6 +2043,8 @@ IF (mype /= 0) THEN
   l_environ_jo2  = my_nml % l_environ_jo2
   l_environ_jo2b = my_nml % l_environ_jo2b
   l_dust_mp_ageing = my_nml % l_dust_mp_ageing
+  l_aero_rainout = my_nml % l_aero_rainout
+  l_ukca_scale_ppe = my_nml % l_ukca_scale_ppe
   ! end of logicals
 
   jvspec_dir     = my_nml % jvspec_dir
@@ -1855,6 +2072,11 @@ IF (mype /= 0) THEN
   ukcasulw       = my_nml % ukcasulw
   ukcasusw       = my_nml % ukcasusw
   ukcaprec       = my_nml % ukcaprec
+  ukca_radaer_dir = my_nml % ukca_radaer_dir
+  ukca_radaer_swext_file = my_nml % ukca_radaer_swext_file
+  ukca_radaer_swabs_file = my_nml % ukca_radaer_swabs_file
+  ukca_radaer_lwext_file = my_nml % ukca_radaer_lwext_file
+  ukca_radaer_lwabs_file = my_nml % ukca_radaer_lwabs_file
 END IF
 
 CALL mpl_type_free(mpl_nml_type,icode)
