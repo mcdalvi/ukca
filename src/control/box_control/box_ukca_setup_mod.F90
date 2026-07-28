@@ -95,7 +95,6 @@ USE ukca_option_mod, ONLY:                                                     &
   l_ukca_het_psc,                                                              &
   i_ukca_hetconfig,                                                            &
   l_ukca_limit_nat,                                                            &
-  l_fix_ukca_n2o5_h2o,                                                         &
   l_ukca_sa_clim,                                                              &
   l_ukca_trophet,                                                              &
   l_ukca_classic_hetchem,                                                      &
@@ -212,7 +211,8 @@ USE science_fixes_mod, ONLY: l_fix_improve_drydep,                             &
     l_fix_ukca_h2so4_ystore, l_fix_neg_pvol_wat,                               &
     l_fix_ukca_impscav, l_fix_nacl_density, l_fix_ukca_activate_pdf,           &
     l_fix_ukca_activate_vert_rep, l_improve_aero_drydep,                       &
-    l_fix_ukca_hygroscopicities, l_fix_ukca_water_content
+    l_fix_ukca_hygroscopicities, l_fix_ukca_water_content,                     &
+    l_fix_ukca_n2o5_h2o
 
 ! Parameters for initialising photolysis
 USE rad_pcf,  ONLY: ip_aerosol_param_moist, ip_accum_sulphate,                 &
@@ -329,6 +329,7 @@ INTEGER, PARAMETER :: n_elev_ice = 10  ! No. of elevated ice types in the 27
                                        ! surface type configuration
 
 INTEGER :: i_photol_scheme             ! Photolysis scheme in use
+INTEGER, PARAMETER :: photol_fastjx_presc = 4
 
 ! UKCA error reporting variables
 CHARACTER(LEN=ukca_maxlen_message)  :: ukca_errmsg    ! Error return message
@@ -494,9 +495,17 @@ l_ukca_strat_chem = ( i_ukca_chem == ukca_chem_strat     .OR.                  &
 ! Initialise the photolysis configuration -done before UKCA since some
 ! environ fields and photolysis diagnostics are still controlled by UKCA based
 ! on the selected photolysis scheme
-CALL photol_setup(i_photol_scheme=i_ukca_photol,                               &
-                  error_code=errcode,                                          &
-                  global_row_length=global_row_length,                         &
+
+!!! Temporary, to handle the fact that all rates are prescribed but for 
+!! functionality a photol scheme has to be defined.
+!! photol_fastjx_presc = Using fastjx but not actually calculating rates
+
+IF ( i_ukca_photol == photol_fastjx ) THEN
+   i_photol_scheme = photol_fastjx_presc
+ELSE
+   i_photol_scheme = i_ukca_photol
+END IF   
+CALL photol_setup(i_photol_scheme, errcode,                                    &
                   l_cal360=lcal360,                                            &
                   n_cca_lev=n_cca_lev,                                         &
                   timestep=timestep,                                           &
@@ -924,8 +933,6 @@ WRITE(umMessage,*) 'SAN BOX_UKCA_SETUP: mode_activation_dryr = ', mode_activatio
 CALL umPrint(umMessage,src=RoutineName)
 WRITE(umMessage,*) 'SAN BOX_UKCA_SETUP: biom_aer_ems_scaling = ', biom_aer_ems_scaling
 CALL umPrint(umMessage,src=RoutineName)
-
-
 
 IF (errcode > 0) THEN
   cmessage = ukca_errmsg

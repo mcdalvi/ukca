@@ -254,6 +254,9 @@ CHARACTER(LEN=maxlen_message) :: var_missing
 LOGICAL :: l_missing
 INTEGER :: nvar_missing
 
+! Temporary - for box model where scheme is fastjx but prescribed
+INTEGER, PARAMETER :: i_scheme_fastjx_presc = 4
+
 INTEGER (KIND=jpim), PARAMETER :: zhook_in  = 0  ! DrHook tracing entry
 INTEGER (KIND=jpim), PARAMETER :: zhook_out = 1  ! DrHook tracing exit
 REAL    (KIND=jprb)            :: zhook_handle   ! DrHook tracing
@@ -282,7 +285,8 @@ IF (PRESENT(i_error_method)) photol_config%i_error_method = i_error_method
 IF ( i_photol_scheme /= i_scheme_nophot        .AND.                           &
      i_photol_scheme /= i_scheme_photol_strat  .AND.                           &
      i_photol_scheme /= i_scheme_phot2d        .AND.                           &
-     i_photol_scheme /= i_scheme_fastjx ) THEN
+     i_photol_scheme /= i_scheme_fastjx        .AND.                           &
+     i_photol_scheme /= i_scheme_fastjx_presc ) THEN
   error_code_ptr = errcode_value_unknown
   WRITE(err_message, '(A,I0)') 'Unknown Photolysis scheme specified ',         &
     i_photol_scheme
@@ -292,7 +296,12 @@ IF ( i_photol_scheme /= i_scheme_nophot        .AND.                           &
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN
 ELSE
-  photol_config%i_photol_scheme = i_photol_scheme
+  IF ( i_photol_scheme == i_scheme_fastjx_presc ) THEN
+    ! FastJX scheme for functionality, but no calculations needed
+    photol_config%i_photol_scheme = i_scheme_fastjx
+  ELSE  
+    photol_config%i_photol_scheme = i_photol_scheme
+  END IF  
 END IF
 
 ! Collate input data specifying the UKCA configuration
@@ -333,6 +342,7 @@ IF (PRESENT(n_phot_spc)) photol_config%n_phot_spc = n_phot_spc
 
 ! Transfer spectral and solar cycle data if using Fast-JX scheme.
 ! Variables that are vectors or arrays are copied using a bespoke function.
+!!! Section will be skipped when i_scheme_fastjx_presc
 IF ( i_photol_scheme == i_scheme_fastjx ) THEN
 
   ! Check that all the spectral / solar cycle variables have been provided.
