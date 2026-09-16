@@ -235,7 +235,7 @@ IF (error_code_ptr > 0) THEN
 END IF
 
 ! Record number of spatial dimensions in use for each diagnostic group
-! and set pointers if any diagnostics are requested in this call.
+! and set pointers only if any diagnostics are requested in this call.
 
 IF (ASSOCIATED(diag2d_copy_out)) THEN
   diagnostics%dimension_out(dgroup_flat_real) = imdi
