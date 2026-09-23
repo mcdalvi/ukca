@@ -710,10 +710,7 @@ IF (ALLOCATED(diagnostics%requests_ptr(group)%varnames)) THEN
       'diagnostics (group ', group, ')'
   END IF
 ELSE
-  error_code_ptr = errcode_diag_mismatch
-  WRITE(message_txt,'(A,I0,A)')                                                &
-    'Status flag array present but diagnostic requests are not set ' //        &
-    '(group ', group, ')'
+  n_req = 0
 END IF
 
 IF (error_code_ptr > 0) THEN
