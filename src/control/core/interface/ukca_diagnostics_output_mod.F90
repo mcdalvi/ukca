@@ -701,7 +701,7 @@ error_code_ptr = 0
 IF (PRESENT(error_message)) error_message = ''
 IF (PRESENT(error_routine)) error_routine = ''
 
-IF (ALLOCATED(diagnostics%requests_ptr(dgroup_flat_real)%varnames)) THEN
+IF (ALLOCATED(diagnostics%requests_ptr(group)%varnames)) THEN
   n_req = diagnostics%n_request(group)
   IF (SIZE(status_flags) /= n_req) THEN
     error_code_ptr = errcode_diag_mismatch
