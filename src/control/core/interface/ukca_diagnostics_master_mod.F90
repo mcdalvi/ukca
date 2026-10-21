@@ -42,6 +42,7 @@ USE ukca_fieldname_mod, ONLY: maxlen_diagname,                                 &
                               diagname_jrate_no2, diagname_jrate_o3a,          &
                               diagname_jrate_o3b, diagname_jrate_o2b,          &
                               diagname_rxnflux_oh_ch4_trop,                    &
+                              diagname_rxnflux_o1d_h2o_watm,                   &
                               diagname_p_tropopause,                           &
                               diagname_o3_column_du,                           &
                               diagname_plumeria_height
@@ -129,6 +130,8 @@ CALL create_diagnostic(diagname_jrate_o3a, dgroup_fullht_real, .TRUE., n)
 CALL create_diagnostic(diagname_jrate_o3b, dgroup_fullht_real, .TRUE., n)
 CALL create_diagnostic(diagname_jrate_o2b, dgroup_fullht_real, .TRUE., n)
 CALL create_diagnostic(diagname_rxnflux_oh_ch4_trop, dgroup_fullht_real,       &
+                       .TRUE., n)
+CALL create_diagnostic(diagname_rxnflux_o1d_h2o_watm, dgroup_fullht_real,      &
                        .TRUE., n)
 CALL create_diagnostic(diagname_p_tropopause, dgroup_flat_real, .FALSE., n)
 CALL create_diagnostic(diagname_o3_column_du, dgroup_fullht_real, .FALSE., n)
@@ -350,6 +353,8 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName = 'STASH_ITEM_CODE'
 SELECT CASE (diagname)
 CASE (diagname_rxnflux_oh_ch4_trop)
   stash_item_code = 41
+CASE (diagname_rxnflux_o1d_h2o_watm)
+  stash_item_code = 122
 CASE DEFAULT
   stash_item_code = imdi
 END SELECT

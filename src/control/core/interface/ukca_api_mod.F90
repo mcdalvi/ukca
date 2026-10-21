@@ -103,6 +103,7 @@ USE ukca_fieldname_mod, ONLY:                                                  &
   ukca_diagname_jrate_o3b => diagname_jrate_o3b,                               &
   ukca_diagname_jrate_o2b => diagname_jrate_o2b,                               &
   ukca_diagname_rxnflux_oh_ch4_trop => diagname_rxnflux_oh_ch4_trop,           &
+  ukca_diagname_rxnflux_o1d_h2o_watm => diagname_rxnflux_o1d_h2o_watm,         &
   ukca_diagname_p_tropopause => diagname_p_tropopause,                         &
   ukca_diagname_o3_column_du => diagname_o3_column_du,                         &
   ukca_diagname_plumeria_height => diagname_plumeria_height

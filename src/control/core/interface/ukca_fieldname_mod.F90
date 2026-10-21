@@ -595,6 +595,11 @@ CHARACTER(LEN=*), PARAMETER :: diagname_rxnflux_oh_ch4_trop =                  &
   'reaction_with_hydroxyl_radical'
                                  ! 50041: Reaction rate OH + CH4 -> H2O + MeOO
                                  ! in the troposphere (mol s-1)
+CHARACTER(LEN=*), PARAMETER :: diagname_rxnflux_o1d_h2o_watm =                 &
+  'tendency_of_atmosphere_moles_of_hydroxyl_radical_due_to_chemical_' //      &
+  'production_from_atomic_singlet_oxygen_and_water_vapor'
+                                 ! 50122: Reaction rate O(1D) + H2O -> 2 OH
+                                 ! in the whole atmosphere (mol s-1)
 
 ! Pressure of PV-theta tropopause surface (Pa)
 CHARACTER(LEN=*), PARAMETER :: diagname_p_tropopause =                         &
