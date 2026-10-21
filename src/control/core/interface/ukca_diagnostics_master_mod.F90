@@ -65,7 +65,7 @@ PUBLIC create_master_diagnostics_list, set_diagnostic_availabilities
 
 ! --- Module variables ---
 
-INTEGER, PARAMETER :: n_diag_tot = 8           ! Total no. of UKCA diagnostics
+INTEGER, PARAMETER :: n_diag_tot = 9           ! Total no. of UKCA diagnostics
 
 ! Array bounds for each diagnostic group
 TYPE(bounds_type), PUBLIC :: bound_info(n_diag_group)
