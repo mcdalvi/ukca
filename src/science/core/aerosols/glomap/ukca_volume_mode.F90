@@ -855,13 +855,13 @@ DO imode=1,nmodes
     errcode=1
     WRITE(cmessage,'(A,I0,1x,5(A,E10.3),A)')                                   &
          'Minimum values < 0.0 for imode=', imode,                             &
-         //newline//                                                           &
+         newline//                                                             &
          'MINVAL(wetdp): ',MINVAL(wetdp(:,imode)),                             &
          'MINVAL(drydp): ',MINVAL(drydp(:,imode)),                             &
          'MINVAL(wvol): ',MINVAL(wvol(:,imode)),                               &
          'MINVAL(dvol): ',MINVAL(dvol(:,imode)),                               &
          'MINVAL(rhopar): ',MINVAL(rhopar(:,imode)),                           &
-         //newline//                                                           &
+         newline//                                                             &
          'See model output'
     CALL ereport(RoutineName,errcode,cmessage)
 
@@ -875,7 +875,7 @@ IF (glomap_config%l_fix_neg_pvol_wat .OR. l_glomap_clim_radaer) THEN
       errcode=1
       WRITE(cmessage,'(A,I0,1X,2(A,E10.3))')                                   &
            'Minimum value of "pvol_wat" or "mdwat" < 0.0 for imode ',imode,    &
-           //newline//                                                         &
+           newline//                                                           &
            'MINVAL(mdwat): ', MINVAL(mdwat(:,imode)),                          &
            'MINVAL(pvol_wat): ', MINVAL(pvol_wat(:,imode))
       CALL ereport(RoutineName,errcode,cmessage)

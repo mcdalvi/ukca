@@ -174,7 +174,7 @@ term8=(dair**(1.0/3.0)+difvol**(1.0/3.0))**2
 cc(:)=0.0
 sinkarr(:)=0.0
 
-+!
+!
 IF (ifuchs < 1 .OR. ifuchs > 2) THEN
   ierr = 1
   WRITE(umMessage,'(A,I5)')'Unexpected Value of IFUCHS ',ifuchs
