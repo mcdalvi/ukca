@@ -268,10 +268,10 @@ SELECT CASE (icondiam)
 CASE (1)
   aa_modes(:) = 0.0     ! as v1_gm4c, take g.m. number radius
 CASE (2)
-  aa_modes(1) = 2.0 ! continuum regime -- 2nd radial moment
+  aa_modes(1) = 2.0 ! free-molecular regime -- 2nd radial moment
   aa_modes(2) = 1.9
   aa_modes(3) = 1.5
-  aa_modes(4) = 1.1 ! molecular regime -- 1st radial moment
+  aa_modes(4) = 1.1 ! continuum regime -- 1st radial moment
   aa_modes(5) = 1.9
   aa_modes(6) = 1.5
   aa_modes(7) = 1.1
@@ -303,7 +303,7 @@ DO jv=1,nchemg
 
         !!          Y2=EXP(2.0*LOG(SIGMAG(IMODE))*LOG(SIGMAG(IMODE)))
         !! original runs tried just setting equivalent to AA=2.0 (above)
-        y2=EXP(0.5*aa*aa*LOG(sigmag(imode))*LOG(sigmag(imode)))
+        y2=EXP(0.5*aa*LOG(sigmag(imode))*LOG(sigmag(imode)))
         ! now use values of AA for each mode from Lehtinen et al (2003)
 
         nc(:,imode)=0.0
