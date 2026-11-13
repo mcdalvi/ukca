@@ -1019,11 +1019,9 @@ DO imts=1,nmts
             ! Hence rescaling is applied solely for ukca_calcnurate using
             ! factor s0g_to_gc_sec_org = 150/16.8
 
-            cp_sec_org=condensable_choice(msec_org)
-            s0g_to_gc_sec_org=mm_gas(msec_org)/mm(cp_sec_org) ! scaling factor
-
-
             IF (msec_org > 0) THEN
+              cp_sec_org=condensable_choice(msec_org)
+              s0g_to_gc_sec_org=mm_gas(msec_org)/mm(cp_sec_org) ! scaling factor
               sec_org(:) = gc(:,msec_org)/s0g_to_gc_sec_org
             ELSE
               sec_org(:) = 0.0

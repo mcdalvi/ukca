@@ -853,27 +853,16 @@ DO imode=1,nmodes
     END DO ! loop over modes (iimode)
 
     errcode=1
-    WRITE(cmessage,'(5(A,E15.6,A,I0),A)')                                      &
-         'Minimum value of "wetdp" or "drydp" or "wvol"'                       &
+    WRITE(cmessage,'(A,I0,1x,5(A,E10.3),A)')                                   &
+         'Minimum values < 0.0 for imode=', imode,                             &
          //newline//                                                           &
-         ' or "wvol" or "dvol" or "rhopar"  < 0.0 '                            &
+         'MINVAL(wetdp): ',MINVAL(wetdp(:,imode)),                             &
+         'MINVAL(drydp): ',MINVAL(drydp(:,imode)),                             &
+         'MINVAL(wvol): ',MINVAL(wvol(:,imode)),                               &
+         'MINVAL(dvol): ',MINVAL(dvol(:,imode)),                               &
+         'MINVAL(rhopar): ',MINVAL(rhopar(:,imode)),                           &
          //newline//                                                           &
-         'MINVAL(wetdp(:,imode)) : ',MINVAL(wetdp(:,imode)),                   &
-         ' at location : ', MINLOC(wetdp(:,imode), DIM=1),                     &
-         newline//                                                             &
-         'MINVAL(drydp(:,imode)) : ',MINVAL(drydp(:,imode)),                   &
-         ' at location : ', MINLOC(drydp(:,imode), DIM=1),                     &
-         newline//                                                             &
-         'MINVAL(wvol(:,imode)) : ',MINVAL(wvol(:,imode)),                     &
-         ' at location : ', MINLOC(wvol(:,imode), DIM=1),                      &
-         newline//                                                             &
-         'MINVAL(dvol(:,imode)) : ',MINVAL(dvol(:,imode)),                     &
-         ' at location : ', MINLOC(dvol(:,imode), DIM=1),                      &
-         newline//                                                             &
-         'MINVAL(rhopar(:,imode)) : ',MINVAL(rhopar(:,imode)),                 &
-         ' at location : ', MINLOC(rhopar(:,imode), DIM=1),                    &
-         newline//                                                             &
-         'Further debugging output in stdout.'
+         'See model output'
     CALL ereport(RoutineName,errcode,cmessage)
 
   END IF ! if wetdp/drydp/wvol/dvol/rhopar <= 0
@@ -884,14 +873,11 @@ IF (glomap_config%l_fix_neg_pvol_wat .OR. l_glomap_clim_radaer) THEN
     IF ( ( MINVAL(pvol_wat(:,imode)) < 0.0 )   .OR.                            &
          ( MINVAL(mdwat(:,imode))    < 0.0 ) ) THEN
       errcode=1
-      WRITE(cmessage,'(2(A,E15.6,A,I0))')                                      &
-           'Minimum value of "pvol_wat" or "mdwat" < 0.0 '                     &
+      WRITE(cmessage,'(A,I0,1X,2(A,E10.3))')                                   &
+           'Minimum value of "pvol_wat" or "mdwat" < 0.0 for imode ',imode,    &
            //newline//                                                         &
-           'MINVAL(mdwat(:,imode)) : ', MINVAL(mdwat(:,imode)),                &
-           ' at location : ', MINLOC(mdwat(:,imode), DIM=1),                   &
-           newline//                                                           &
-           'MINVAL(pvol_wat(:,imode)) : ', MINVAL(pvol_wat(:,imode)),          &
-           ' at location : ', MINLOC(pvol_wat(:,imode), DIM=1)
+           'MINVAL(mdwat): ', MINVAL(mdwat(:,imode)),                          &
+           'MINVAL(pvol_wat): ', MINVAL(pvol_wat(:,imode))
       CALL ereport(RoutineName,errcode,cmessage)
     END IF
   END DO
