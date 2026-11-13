@@ -256,7 +256,7 @@ END WHERE
 WHERE (logic1ca(:)) ierr(:)=1 ! ! A /= 0, D=0 & B=0
 !
 ! Below is for case where A /= 0, D = 0 and B=0
-WHERE (logic1cb(:)) ndnew(:)=1.0/(1.0/nd(:)-3.0*a(:)*dtz)
+WHERE (logic1cb(:)) ndnew(:)=1.0/(1.0/nd(:)-a(:)*dtz)
 
 ! Below is for case where A == 0, B /= 0 (==> D<0 )
 WHERE (logic2a(:))
