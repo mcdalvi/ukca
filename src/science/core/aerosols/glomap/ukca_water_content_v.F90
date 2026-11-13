@@ -130,7 +130,7 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_WATER_CONTENT_V'
 
 DATA (z(i),i=-nanion,ncation)/1.0,1.0,2.0,1.0,0.0,1.0,1.0,1.0/
-!                                    Cl NO3 SO4 HSO4 H2O  H NH4  Na
+!                                    Cl NO3 SO4 HSO4 H2O  H Na NH4
 
 ! As this subroutine is in an OMP parallel section,
 ! the use of the DATA statements cause y to be shared between threads,

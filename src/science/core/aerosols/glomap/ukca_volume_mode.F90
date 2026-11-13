@@ -394,7 +394,7 @@ DO imode=1,nmodes
 
       IF (component(imode,cp_cl) .OR. (glomap_config%i_mode_setup == 11)) THEN
         ! assume complete dissociation
-        cl(:,3)=mdcopy(:,imode,cp_cl)/avogadro ! [Na] in moles per cc (air)
+        cl(:,2)=mdcopy(:,imode,cp_cl)/avogadro ! [Na] in moles per cc (air)
         cl(:,-4)=mdcopy(:,imode,cp_cl)/avogadro ! [Cl] in moles per cc (air)
       END IF
 
@@ -402,7 +402,7 @@ DO imode=1,nmodes
       IF (UBOUND(component,DIM=2) >= cp_no3) THEN
 
         IF (component(imode,cp_nh4)) THEN ! assume complete dissociation
-          cl(:,2)=md(:,imode,cp_nh4)/avogadro ! [NH4] in moles per cc (air)
+          cl(:,3)=md(:,imode,cp_nh4)/avogadro ! [NH4] in moles per cc (air)
         END IF
 
         IF (component(imode,cp_no3)) THEN ! assume complete dissociation
@@ -410,7 +410,7 @@ DO imode=1,nmodes
         END IF
 
         IF (component(imode,cp_nn)) THEN ! assume complete dissociation
-          cl(:,3)=cl(:,3)+md(:,imode,cp_nn)/avogadro
+          cl(:,2)=cl(:,2)+md(:,imode,cp_nn)/avogadro
                     ! [Na] in moles per cc (air)
           cl(:,-3)=cl(:,-3)+md(:,imode,cp_nn)/avogadro
                     ! [NO3] in moles per cc (air)
