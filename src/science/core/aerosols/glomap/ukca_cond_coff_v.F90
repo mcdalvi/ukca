@@ -94,6 +94,8 @@ USE ukca_um_legacy_mod, ONLY: rgas => r
 USE ukca_types_mod,   ONLY: log_small
 USE yomhook,          ONLY: lhook, dr_hook
 USE parkind1,         ONLY: jprb, jpim
+USE ereport_mod,      ONLY: ereport
+USE umPrintMgr,       ONLY: umMessage, umPrint
 
 IMPLICIT NONE
 
@@ -137,6 +139,8 @@ REAL    :: dair
 ! Molar mass of dry air (kg/mol)
 REAL :: mm_da  ! =avogadro*boltzmann/rgas
 
+INTEGER :: ierr
+
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
@@ -169,6 +173,20 @@ term8=(dair**(1.0/3.0)+difvol**(1.0/3.0))**2
 
 cc(:)=0.0
 sinkarr(:)=0.0
+
++!
+IF (ifuchs < 1 .OR. ifuchs > 2) THEN
+  ierr = 1
+  WRITE(umMessage,'(A,I5)')'Unexpected Value of IFUCHS ',ifuchs
+  CALL umPrint(umMessage,src='ukca_cond_coff_v')
+  CALL ereport('UKCA_COND_COFF_V',ierr,'Unexpected IFUCHS value')
+END IF
+IF (idcmfp < 1 .OR. idcmfp > 2) THEN
+  ierr = 2
+  WRITE(umMessage,'(A,I5)')'Unexpected Value of IDCMFP ',idcmfp
+  CALL umPrint(umMessage,src='ukca_cond_coff_v')
+  CALL ereport('UKCA_COND_COFF_V',ierr,'Unexpected IDCMFP value')
+END IF
 
 ! .. Calc. thermal velocity of condensable gas
 WHERE (mask(:)) vel_cp(:)=term1*tsqrt(:)

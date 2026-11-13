@@ -171,6 +171,9 @@ USE ukca_types_mod,     ONLY: log_small
 USE ukca_config_constants_mod, ONLY: boltzmann
 USE parkind1,           ONLY: jprb, jpim
 USE yomhook,            ONLY: lhook, dr_hook
+USE ereport_mod,        ONLY: ereport
+USE umPrintMgr,         ONLY: umMessage, umPrint
+
 IMPLICIT NONE
 
 ! Subroutine interface:
@@ -225,6 +228,7 @@ REAL :: term4
 REAL :: term5
 
 REAL, PARAMETER :: ukca_mfp_ref=6.6e-8
+INTEGER :: ierr
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -239,6 +243,14 @@ kij(:) = 0.0
 IF (coag_on == 0) THEN
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN
+END IF
+!
+! ICOAG=4 reads MFPPI and MFPPJ, which only ICOAG=1 computes
+IF (icoag < 1 .OR. icoag > 3) THEN
+  ierr = 1
+  WRITE(umMessage,'(A,I5)')'Unexpected Value of ICOAG ',icoag
+  CALL umPrint(umMessage,src='ukca_coag_coff_v')
+  CALL ereport('UKCA_COAG_COFF_V',ierr,'Unexpected ICOAG value')
 END IF
 !
 term1=8.0*boltzmann/pi
